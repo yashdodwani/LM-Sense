@@ -1,2 +1,14 @@
 lms/
 .idea/
+.claude/
+.claude_cache/
+.env
+.vscode/
+*.log
+ui/node_modules/
+ui/dist/
+ui/package-lock.json
+ui/yarn.lock
+ui/.next/
+node_modules/
+dist/
