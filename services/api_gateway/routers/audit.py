@@ -14,6 +14,9 @@ from core.logging import get_logger
 from services.api_gateway.dependencies import TenantContext, get_tenant_context, require_role
 from services.api_gateway.schemas.audit import AuditExportRequest, AuditListResponse, AuditQuery
 from services.api_gateway.schemas.common import APIResponse, BiasType, Severity, UserRole
+from services.audit_logger.logger import AuditLogger
+from services.audit_logger.worker import export_audit_log_task
+from services.api_gateway.schemas.audit import AuditEntry
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/audit", tags=["Audit"])
@@ -43,12 +46,50 @@ async def list_audit_entries(
     """
     Fetch audit entries filtered by bias_type, severity, model, and date range.
     Sorted by created_at descending (newest first).
-    TODO: wire to AuditLogger.query()
     """
     logger.info("audit.list", tenant_id=str(ctx.tenant_id), page=page)
+    
+    query = AuditQuery(
+        bias_type=bias_type,
+        severity=severity,
+        model=model,
+        page=page,
+        page_size=page_size
+    )
+    
+    logger_svc = AuditLogger()
+    entries, total = await logger_svc.query(str(ctx.tenant_id), query)
+    
+    formatted_entries = []
+    for e in entries:
+        formatted_entries.append(AuditEntry(
+            id=e.id,
+            tenant_id=e.tenant_id,
+            request_id=e.request_id,
+            model=e.model,
+            prompt_hash=e.prompt_hash,
+            raw_response_hash=e.raw_response_hash,
+            debiased_response=e.debiased_response,
+            bias_score_before=e.bias_score_before,
+            bias_score_after=e.bias_score_after,
+            bias_types_detected=e.bias_types_detected,
+            severity=e.severity,
+            layers_applied=e.layers_applied,
+            action_taken=e.action_taken,
+            block_hash=e.block_hash,
+            created_at=e.created_at
+        ))
+
+    pages = (total + page_size - 1) // page_size
 
     return APIResponse(
-        data=AuditListResponse(entries=[], total=0, page=page, page_size=page_size, pages=0)
+        data=AuditListResponse(
+            entries=formatted_entries,
+            total=total,
+            page=page,
+            page_size=page_size,
+            pages=pages
+        )
     )
 
 
@@ -64,10 +105,11 @@ async def export_audit_log(
 ) -> APIResponse[ExportJobResponse]:
     """
     Triggers a Celery task to generate and upload the compliance report.
-    TODO: dispatch to report_generator Celery task
     """
     job_id = str(uuid.uuid4())
     logger.info("audit.export.queued", job_id=job_id, format=body.format)
+
+    export_audit_log_task.delay(str(ctx.tenant_id), job_id, body.format)
 
     return APIResponse(
         data=ExportJobResponse(job_id=job_id, format=body.format, status="queued")
@@ -85,6 +127,7 @@ async def verify_chain(
     """
     Calls AuditLogger.verify_chain() for this tenant.
     Returns {intact: bool, entries_checked: int, first_tampered_id: str | None}
-    TODO: wire to AuditLogger
     """
-    return APIResponse(data={"intact": True, "entries_checked": 0, "first_tampered_id": None})
+    logger_svc = AuditLogger()
+    result = await logger_svc.verify_chain(str(ctx.tenant_id))
+    return APIResponse(data=result)
