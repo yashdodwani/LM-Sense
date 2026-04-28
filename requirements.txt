@@ -1,13 +1,48 @@
+# LM-Sense — production dependencies
+# Purpose: pinned dependencies for the API gateway and all Python services
+
+# ── Web framework ─────────────────────────────────────────────────────────────
 fastapi==0.111.*
-uvicorn[standard]
+uvicorn[standard]==0.30.*
+python-multipart==0.0.*          # Form data / file uploads
+
+# ── Config & validation ───────────────────────────────────────────────────────
+pydantic==2.7.*
+pydantic-settings==2.3.*
+
+# ── Auth ─────────────────────────────────────────────────────────────────────
+PyJWT==2.8.*
+cryptography==42.*               # JWT signing backend
+
+# ── Database ─────────────────────────────────────────────────────────────────
 sqlalchemy==2.0.*
-asyncpg
-pydantic-settings
-structlog
-celery
-redis
-peft==0.11.*
-trl==0.9.*
+asyncpg==0.29.*                  # Async PostgreSQL driver
+alembic==1.13.*                  # DB migrations
+
+# ── Redis / queue ─────────────────────────────────────────────────────────────
+redis[asyncio]==5.0.*
+celery==5.4.*
+flower==2.0.*                    # Celery monitoring UI
+
+# ── HTTP client ───────────────────────────────────────────────────────────────
+httpx==0.27.*
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+structlog==24.*
+
+# ── ML / debiasing ────────────────────────────────────────────────────────────
 torch==2.3.*
-transformers
-bitsandbytes
+transformers==4.41.*
+peft==0.11.*                     # QLoRA / LoRA adapters
+trl==0.9.*                       # PPO trainer for RLDF
+bitsandbytes==0.43.*             # 4-bit quantisation for QLoRA
+accelerate==0.31.*               # Multi-GPU / device abstraction
+datasets==2.20.*                 # CDA dataset loading
+
+# ── Report generation ─────────────────────────────────────────────────────────
+reportlab==4.2.*                 # PDF generation
+
+# ── Observability ─────────────────────────────────────────────────────────────
+sentry-sdk[fastapi]==2.5.*
+opentelemetry-api==1.25.*
+opentelemetry-sdk==1.25.*

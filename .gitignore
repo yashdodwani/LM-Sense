@@ -1,2 +1,4 @@
 lms/
 .idea/
+.env
+venv/
