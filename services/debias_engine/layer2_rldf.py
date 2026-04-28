@@ -26,7 +26,7 @@ from services.api_gateway.schemas.common import LayerName, LayerTrace
 
 logger = get_logger(__name__)
 
-REWARD_MODEL_URL = os.getenv("REWARD_MODEL_URL", None)
+REWARD_MODEL_URL = os.getenv("REWARD_MODEL_URL", "http://localhost:8004")
 
 
 class Layer2RLDF:

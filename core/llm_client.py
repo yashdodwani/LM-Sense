@@ -214,7 +214,8 @@ class LLMClient:
             "https://openrouter.ai/api/v1/chat/completions",
             headers={"Authorization": f"Bearer {settings.OPENROUTER_API_KEY}"},
             json={"model": model, "messages": messages,
-                  "temperature": temperature, "max_tokens": max_tokens},
+                  "temperature": temperature, "max_tokens": max_tokens,
+                  "reasoning": {"enabled": True}},
         )
         self._raise_for_status(resp, LLMProvider.OPENROUTER)
         data = resp.json()

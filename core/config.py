@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     MAX_REQUESTS_PER_MINUTE: int = 60      # Per tenant, sliding window
 
     # ── CORS ─────────────────────────────────────────────────────────────
-    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
+    ALLOWED_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"]
 
     # ── Celery ───────────────────────────────────────────────────────────
     CELERY_BROKER_URL: str = "redis://localhost:6379/1"

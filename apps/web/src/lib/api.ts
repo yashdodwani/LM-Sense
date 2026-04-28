@@ -11,7 +11,7 @@ import type {
 } from "./types";
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8003";
 
 // Retrieve token from localStorage (client-only, falls back to env var for SSR mocks)
 function getToken(): string {

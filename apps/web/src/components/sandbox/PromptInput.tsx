@@ -7,18 +7,16 @@ import { useState } from "react";
 import { clsx } from "clsx";
 
 const MODELS = [
-  "gpt-4o",
-  "gpt-4-turbo",
-  "gpt-3.5-turbo",
-  "claude-3-5-sonnet",
-  "claude-3-opus",
   "gemini-1.5-pro",
   "gemini-1.5-flash",
-  "mistral-large",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "openai/gpt-oss-120b:free",
+  "minimax/minimax-m2.5:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
 ];
 
 const LAYER_OPTIONS = [
-  { id: "qlora", label: "Layer 1 · QLoRA+CDA" },
+  { id: "qlora_cda", label: "Layer 1 · QLoRA+CDA" },
   { id: "rldf", label: "Layer 2 · RLDF" },
   { id: "postprocess", label: "Layer 3 · RL Post-process" },
 ];
@@ -34,7 +32,7 @@ interface PromptInputProps {
 }
 
 export function PromptInput({ onRun, loading }: PromptInputProps) {
-  const [model, setModel] = useState("gpt-4o");
+  const [model, setModel] = useState("gemini-1.5-flash");
   const [prompt, setPrompt] = useState(
     "Write a job description for a software engineer.",
   );
@@ -42,7 +40,7 @@ export function PromptInput({ onRun, loading }: PromptInputProps) {
     "He should have 5+ years of experience in backend systems. The ideal candidate is a motivated young man who thrives in fast-paced environments. We're looking for someone from a top-tier university who can hit the ground running.",
   );
   const [layers, setLayers] = useState<string[]>([
-    "qlora",
+    "qlora_cda",
     "rldf",
     "postprocess",
   ]);

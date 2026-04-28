@@ -8,6 +8,11 @@ import os
 import sys
 from pathlib import Path
 
+# Add project root to sys.path so 'ml.*' imports work from anywhere
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import torch
 from peft import LoraConfig, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, TrainingArguments
@@ -33,8 +38,10 @@ def main() -> None:
             print(f"Error loading config: {e}")
             sys.exit(1)
 
-    if not torch.cuda.is_available():
-        print("Warning: CUDA is not available. Training will be extremely slow on CPU.")
+    has_gpu = torch.cuda.is_available()
+    if not has_gpu:
+        print("Warning: CUDA is not available. Training will be extremely slow on CPU. Disabling 4-bit quantization.")
+        config.use_4bit = False
     
     # Optional W&B Logging
     wandb_api_key = os.getenv("WANDB_API_KEY")
@@ -48,21 +55,28 @@ def main() -> None:
 
     print(f"Loading base model: {config.base_model_id} in 4-bit...")
     
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=config.use_4bit,
-        bnb_4bit_compute_dtype=getattr(torch, config.bnb_4bit_compute_dtype, torch.float16),
-        bnb_4bit_use_double_quant=False,
-        bnb_4bit_quant_type="nf4",
-    )
+    bnb_config = None
+    if config.use_4bit:
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=getattr(torch, config.bnb_4bit_compute_dtype, torch.float16),
+            bnb_4bit_use_double_quant=False,
+            bnb_4bit_quant_type="nf4",
+        )
     
     tokenizer = AutoTokenizer.from_pretrained(config.base_model_id)
     tokenizer.pad_token = tokenizer.eos_token
     
     # Load model
+    model_kwargs = {
+        "device_map": "auto" if has_gpu else "cpu",
+    }
+    if bnb_config:
+        model_kwargs["quantization_config"] = bnb_config
+
     model = AutoModelForCausalLM.from_pretrained(
         config.base_model_id,
-        quantization_config=bnb_config,
-        device_map="auto"
+        **model_kwargs
     )
     
     print("Configuring LoRA...")

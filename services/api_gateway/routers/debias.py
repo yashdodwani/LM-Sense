@@ -9,13 +9,13 @@ from services.audit_logger.worker import log_debias_result
 from services.api_gateway.schemas.debias import DebiasRequest, DebiasResponse
 from services.api_gateway.schemas.pipeline import PipelineConfig
 
-router = APIRouter(prefix="/v1/debias", tags=["Debias"])
+router = APIRouter(prefix="/debias", tags=["Debias"])
 
-@router.post("/", response_model=DebiasResponse)
+@router.post("", response_model=DebiasResponse)
 async def run_debias(body: DebiasRequest):
     engine = get_debias_engine()
     tenant_id = "test-tenant-123" # Hardcoded for now
-    config = PipelineConfig()
+    config = PipelineConfig(tenant_id=tenant_id)
     
     result = await engine.run(
         prompt=body.prompt,
@@ -27,22 +27,9 @@ async def run_debias(body: DebiasRequest):
         requested_layers=body.layers,
     )
 
-    # Convert DebiasResult to dict for Celery
-    result_dict = {
-        "request_id": result.request_id,
-        "model": result.model,
-        "raw_response": result.raw_response,
-        "debiased_response": result.debiased_response,
-        "action_taken": result.action_taken,
-        "bias_score_before": result.bias_score_before.model_dump() if hasattr(result.bias_score_before, 'model_dump') else result.bias_score_before,
-        "bias_score_after": result.bias_score_after.model_dump() if hasattr(result.bias_score_after, 'model_dump') else result.bias_score_after,
-        "flagged_spans": [s.model_dump() if hasattr(s, 'model_dump') else s for s in result.flagged_spans],
-        "layer_trace": [t.model_dump() if hasattr(t, 'model_dump') else t for t in result.layer_trace],
-        "layers_applied": [str(l.value) if hasattr(l, 'value') else l for l in result.layers_applied],
-        "processing_time_ms": result.processing_time_ms
-    }
-
+    from fastapi.encoders import jsonable_encoder
+    
     # Audit log dispatched async — does not block the response
-    log_debias_result.delay(result_dict, tenant_id, body.prompt)
+    log_debias_result.delay(jsonable_encoder(result), tenant_id, body.prompt)
 
     return result
