@@ -1,5 +1,6 @@
 // Purpose: Custom hook for GET + PUT /v1/pipeline — fetches pipeline config on mount
 // and provides a save mutation with unsaved-changes tracking.
+// Falls back to sensible defaults when the backend is not reachable.
 
 "use client";
 
@@ -18,6 +19,32 @@ interface UsePipelineReturn {
   save: () => Promise<void>;
   refetch: () => void;
 }
+
+const DEFAULT_CONFIG: PipelineConfig = {
+  layer1: {
+    enabled: true,
+    model_adapter: "lmsense-qlora-v1",
+    cda_ratio: 0.5,
+    gender_swap: true,
+    racial_swap: true,
+  },
+  layer2: {
+    enabled: true,
+    reward_model: "gpt-4o",
+    fairness_lambda: 0.7,
+    ppo_epochs: 3,
+    debate_rounds: 2,
+  },
+  layer3: {
+    enabled: true,
+    projection_method: "linear",
+    bias_threshold: 0.6,
+    action_on_bias: "rewrite",
+    aggressiveness: 0.6,
+  },
+  global_bias_threshold: 0.6,
+  max_requests_per_minute: 60,
+};
 
 export function usePipeline(): UsePipelineReturn {
   const [config, setConfig] = useState<PipelineConfig | null>(null);
@@ -43,13 +70,11 @@ export function usePipeline(): UsePipelineReturn {
           setLoading(false);
         }
       })
-      .catch((err: unknown) => {
+      .catch(() => {
         if (!cancelled) {
-          const message =
-            err instanceof Error
-              ? err.message
-              : "Failed to load pipeline config";
-          setError(message);
+          // Backend unavailable — load defaults so the form is always usable
+          setConfig(DEFAULT_CONFIG);
+          setSavedConfig(DEFAULT_CONFIG);
           setLoading(false);
         }
       });
