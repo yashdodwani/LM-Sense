@@ -26,6 +26,8 @@ class ConnectProviderRequest(BaseModel):
     model_name: str
     org_id: str | None = None
 
+    model_config = {"protected_namespaces": ()}
+
 
 class ProviderConnection(BaseModel):
     """A connected LLM provider record."""
@@ -34,6 +36,8 @@ class ProviderConnection(BaseModel):
     model_name: str
     status: str    # "connected" | "error" | "disconnected"
     last_tested_at: str | None = None
+
+    model_config = {"protected_namespaces": ()}
 
 
 class APIKeyRecord(BaseModel):

@@ -6,7 +6,7 @@ Every log event automatically carries: timestamp, level, service, request_id.
 Import `get_logger` — never use bare print() or the stdlib logging module directly.
 """
 
-import logging
+import logging as py_logging
 import sys
 
 import structlog
@@ -48,19 +48,27 @@ def configure_logging() -> None:
     else:
         renderer = structlog.processors.JSONRenderer()
 
+    # Ensure stdlib logging is configured so structlog can emit via a real
+    # `logging.Logger` (required by processors like `add_logger_name`).
+    py_logging.basicConfig(
+        level=py_logging.DEBUG if settings.DEBUG else py_logging.INFO,
+        stream=sys.stdout,
+        format="%(message)s",
+    )
+
     structlog.configure(
         processors=shared_processors + [renderer],
         wrapper_class=structlog.make_filtering_bound_logger(
-            logging.DEBUG if settings.DEBUG else logging.INFO
+            py_logging.DEBUG if settings.DEBUG else py_logging.INFO
         ),
         context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(sys.stdout),
+        logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
 
     # Also silence noisy stdlib loggers
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    py_logging.getLogger("uvicorn.access").setLevel(py_logging.WARNING)
+    py_logging.getLogger("sqlalchemy.engine").setLevel(py_logging.WARNING)
 
 
 def get_logger(name: str) -> structlog.BoundLogger:
