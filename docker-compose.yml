@@ -1,26 +1,98 @@
-version: "3.8"
+# LM-Sense — local development Docker Compose
+# Purpose: spins up all infrastructure services needed to run the API gateway locally
+# Usage: docker compose up --build
+
+version: "3.9"
+
 services:
+
+  # ── API Gateway ─────────────────────────────────────────────────────────────
   api-gateway:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn services.api_gateway.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/app
     ports:
       - "8000:8000"
-  postgres:
-    image: postgres:15
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pass
-      POSTGRES_DB: db
-    ports:
-      - "5432:5432"
-  redis:
-    image: redis:7
-    ports:
-      - "6379:6379"
+      DATABASE_URL: postgresql+asyncpg://lmsense:lmsense@postgres:5432/lmsense
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+
+  # ── Celery Worker (async jobs: audit writes, report generation) ──────────────
   celery-worker:
-    build: .
-    command: celery -A services.audit_logger.worker worker --loglevel=info
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A services.audit_logger.worker worker --loglevel=info --concurrency=4
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - postgres
+    environment:
+      DATABASE_URL: postgresql+asyncpg://lmsense:lmsense@postgres:5432/lmsense
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+
+  # ── Flower — Celery monitoring UI ───────────────────────────────────────────
   flower:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     command: celery -A services.audit_logger.worker flower --port=5555
     ports:
       - "5555:5555"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/1
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: lmsense
+      POSTGRES_PASSWORD: lmsense
+      POSTGRES_DB: lmsense
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lmsense"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
