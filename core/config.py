@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None
     GEMINI_API_KEY: str | None = None
+    OPENROUTER_API_KEY: str | None = None
 
     # ── Database ──────────────────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+asyncpg://lmsense:lmsense@localhost:5432/lmsense"
@@ -46,7 +47,7 @@ class Settings(BaseSettings):
     JWT_EXPIRY_MINUTES: int = 60
 
     # ── Debiasing Pipeline ────────────────────────────────────────────────
-    REWARD_MODEL: str = "gpt-4o"           # AI judge used in RLDF layer
+    REWARD_MODEL: str = "minimax/minimax-m2.5:free"  # AI judge used in RLDF layer
     FAIRNESS_LAMBDA: float = 0.7           # Fairness vs fluency trade-off (0.0–1.0)
     BIAS_THRESHOLD: float = 0.6            # Flag outputs with score below this
     LAYER1_ENABLED: bool = True            # QLoRA + CDA layer
@@ -69,10 +70,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def at_least_one_llm_key(self) -> "Settings":
-        if not any([self.OPENAI_API_KEY, self.ANTHROPIC_API_KEY, self.GEMINI_API_KEY]):
+        if not any([self.OPENAI_API_KEY, self.ANTHROPIC_API_KEY, self.GEMINI_API_KEY, self.OPENROUTER_API_KEY]):
             raise ValueError(
                 "At least one LLM provider API key must be set: "
-                "OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY"
+                "OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY"
             )
         return self
 

@@ -45,9 +45,9 @@ DEBATE_PROMPTS: list[str] = [
 ]
 
 class DebateGenerator:
-    def __init__(self, reward_model_id: str = "gpt-4o") -> None:
-        if not os.getenv("OPENAI_API_KEY"):
-            print("Error: OPENAI_API_KEY environment variable is required to run the debate generator.")
+    def __init__(self, reward_model_id: str = "minimax/minimax-m2.5:free") -> None:
+        if not os.getenv("OPENROUTER_API_KEY"):
+            print("Error: OPENROUTER_API_KEY environment variable is required to run the debate generator.")
             sys.exit(1)
             
         self.reward_model_id = reward_model_id

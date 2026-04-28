@@ -22,6 +22,7 @@ class LLMProvider(StrEnum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GEMINI = "gemini"
+    OPENROUTER = "openrouter"
 
 
 # Maps model name prefixes to providers
@@ -30,6 +31,10 @@ MODEL_PROVIDER_MAP: dict[str, LLMProvider] = {
     "o1":     LLMProvider.OPENAI,
     "claude": LLMProvider.ANTHROPIC,
     "gemini": LLMProvider.GEMINI,
+    "nvidia/": LLMProvider.OPENROUTER,
+    "openai/": LLMProvider.OPENROUTER,
+    "minimax/": LLMProvider.OPENROUTER,
+    "meta-llama/": LLMProvider.OPENROUTER,
 }
 
 
@@ -91,6 +96,8 @@ class LLMClient:
                 return await self._call_anthropic(model, prompt, system, temperature, max_tokens)
             elif provider == LLMProvider.GEMINI:
                 return await self._call_gemini(model, prompt, system, temperature, max_tokens)
+            elif provider == LLMProvider.OPENROUTER:
+                return await self._call_openrouter(model, prompt, system, temperature, max_tokens)
         except LLMProviderError:
             raise
         except Exception as exc:
@@ -188,6 +195,34 @@ class LLMClient:
             model=model,
             provider=LLMProvider.GEMINI,
             usage={},
+        )
+
+    async def _call_openrouter(
+        self, model: str, prompt: str, system: str | None,
+        temperature: float, max_tokens: int
+    ) -> LLMResponse:
+        """Calls the OpenRouter chat completions API."""
+        if not settings.OPENROUTER_API_KEY:
+            raise LLMProviderNotConfiguredError("OPENROUTER_API_KEY is not set")
+
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+
+        resp = await self._http.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={"Authorization": f"Bearer {settings.OPENROUTER_API_KEY}"},
+            json={"model": model, "messages": messages,
+                  "temperature": temperature, "max_tokens": max_tokens},
+        )
+        self._raise_for_status(resp, LLMProvider.OPENROUTER)
+        data = resp.json()
+        return LLMResponse(
+            text=data["choices"][0]["message"]["content"],
+            model=model,
+            provider=LLMProvider.OPENROUTER,
+            usage=data.get("usage", {}),
         )
 
     def _raise_for_status(self, resp: httpx.Response, provider: LLMProvider) -> None:
